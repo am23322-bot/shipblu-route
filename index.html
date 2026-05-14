@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShipBlu Route Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{--bg:#f2efe9;--surface:#fff;--surface2:#ebe7df;--border:#d5cfc4;--orange:#e8890c;--green:#2dce7e;--blue:#4a9eff;--red:#ff4757;--purple:#a855f7;--text:#1a1a1a;--text-muted:#7a8499;--text-dim:#999085}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'Cairo',sans-serif;display:flex;flex-direction:column}
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+/* HEADER */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:5px 10px;display:flex;align-items:center;gap:6px;flex-shrink:0;z-index:1000;flex-wrap:wrap;min-height:42px}
+.logo{display:flex;align-items:center;gap:5px;margin-left:8px;flex-shrink:0}
+.logo-i{width:26px;height:26px;background:var(--orange);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.logo-t{font-size:13px;font-weight:900;letter-spacing:-.5px;white-space:nowrap}
+.logo-t span{color:var(--orange)}
+/* USER TABS */
+.utabs{display:flex;gap:2px;background:var(--bg);border-radius:7px;padding:2px}
+.utab{padding:4px 10px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;color:var(--text-muted);transition:all .15s;border:1px solid transparent;background:none;font-family:'Cairo',sans-serif;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.utab.on{background:var(--surface);color:var(--text);border-color:var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.utab:hover:not(.on){border-color:var(--border)}.utab .dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}.utab .cnt{font-size:9px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace}
+.utab-s{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;padding:0 4px;border-radius:4px;transition:color .15s}
+.utab-s:hover{color:var(--text)}.utab-s.on{color:var(--orange)}
+/* HEADER ACTIONS */
+.hacts{display:flex;gap:4px;margin-right:auto;align-items:center}
+.btn{background:var(--orange);color:#fff;border:none;padding:4px 9px;border-radius:6px;font-family:'Cairo',sans-serif;font-weight:700;font-size:10px;cursor:pointer;transition:background .15s;white-space:nowrap;flex-shrink:0}
+.btn:hover{background:#c9770a}.btn2{background:var(--surface2);border:1px solid var(--border);color:var(--text-muted)}.btn2:hover{background:var(--border);color:var(--text)}
+.pills{display:flex;gap:5px}.pill{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:2px 8px;font-size:10px;font-family:'IBM Plex Mono',monospace;display:flex;align-items:center;gap:4px}
+.pill .pdot{width:5px;height:5px;border-radius:50%}
+/* MAIN */
+.main{display:flex;flex:1;overflow:hidden;position:relative;min-height:0}
+#map{flex:1;cursor:crosshair}.leaflet-container{background:#e8e4dc}
+/* LEGEND */
+.legend{position:absolute;top:10px;right:10px;z-index:999;background:rgba(255,255,255,.93);border:1px solid var(--border);border-radius:9px;padding:7px 10px;font-size:10px;min-width:110px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.legend-item{display:flex;align-items:center;gap:5px;padding:2px 0;cursor:pointer;color:var(--text-muted);transition:color .15s}
+.legend-item:hover{color:var(--text)}.legend-item .ldot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.legend-item .lname{flex:1;font-weight:600;font-size:10px}.legend-item .lcnt{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-dim)}
+.legend-item.hidden{opacity:.35}
+/* SIDEBAR */
+.sidebar{width:350px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;transition:width .25s;min-height:0;position:relative}
+.sidebar.closed{width:0}
+.stog{position:absolute;top:50%;transform:translateY(-50%);left:350px;z-index:1001;background:var(--surface2);border:1px solid var(--border);border-radius:0 6px 6px 0;width:15px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-dim);font-size:9px;transition:left .25s}
+.stog:hover{background:var(--border)}
+.sidebar .tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface2)}
+.sidebar .tabs .tab{flex:1;padding:7px 5px;font-size:10px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--text-muted);font-family:'Cairo',sans-serif;transition:all .15s;border-bottom:2px solid transparent}
+.sidebar .tabs .tab.on{color:var(--text);border-bottom-color:var(--orange);background:var(--surface)}
+.sidebar .panels{flex:1;display:flex;flex-direction:column;min-height:0}
+.sidebar .panel{display:none;flex:1;flex-direction:column;min-height:0}
+.sidebar .panel.on{display:flex}
+/* DASHBOARD PANEL */
+.dash{padding:10px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.dcard{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0;overflow:hidden}
+.dcard-h{display:flex;align-items:center;gap:8px;padding:9px 11px;cursor:pointer;transition:background .15s}
+.dcard-h:hover{background:rgba(0,0,0,.02)}
+.dcard-h .dcol{width:4px;border-radius:2px;flex-shrink:0;align-self:stretch}
+.dcard-h .dinfo{flex:1;min-width:0}
+.dcard-h .dname{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dcard-h .dphone{font-size:10px;color:var(--blue);font-weight:600}
+.dcard-h .dstats{display:flex;gap:10px;margin-top:3px}
+.dcard-h .dstat{text-align:center}
+.dcard-h .dsv{font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+.dcard-h .dsl{font-size:8px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-top:-1px}
+.dcard-body{padding:0 11px 9px;display:none;flex-direction:column;gap:5px}
+.dcard-body.open{display:flex}
+.dcard-body .dbl{display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);padding:2px 0;border-bottom:1px solid var(--border)}
+.dcard-body .dbl:last-child{border-bottom:none}
+.dcard-body .dbl span:last-child{font-weight:700;color:var(--text);font-family:'IBM Plex Mono',monospace}
+.dtotal{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px}
+.dtotal-h{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.dtotal-r{display:flex;gap:12px;flex-wrap:wrap}
+.dtotal-item{text-align:center;flex:1;min-width:60px}
+.dtotal-item .dtv{font-size:16px;font-weight:900;font-family:'IBM Plex Mono',monospace;color:var(--orange)}
+.dtotal-item .dtl{font-size:9px;color:var(--text-dim)}
+/* SHIPMENTS PANEL */
+.ship-panel{display:flex;flex-direction:column;min-height:0;flex:1}
+.ship-panel .topinfo{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+.ship-panel .topinfo .ti{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px}
+.ship-panel .topinfo .ti span{color:var(--text);font-family:'IBM Plex Mono',monospace;margin-right:4px}
+.ship-panel .topinfo .tia{display:flex;gap:4px}
+.fbar{display:flex;gap:3px;padding:5px 8px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.fb{flex:1;font-size:9px;padding:3px 4px;border-radius:4px;font-family:'Cairo',sans-serif;font-weight:600;cursor:pointer;background:var(--bg);border:1px solid var(--border);color:var(--text-muted);transition:all .15s;text-align:center}
+.fb.on{background:var(--surface2);color:var(--text);border-color:var(--orange)}
+.slist{flex:1;overflow-y:auto;padding:6px;min-height:0}
+.sc{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 8px;margin-bottom:4px;cursor:pointer;transition:all .12s;position:relative;overflow:hidden}
+.sc:hover{border-color:var(--orange-dim)}.sc.active{border-color:var(--orange);background:rgba(232,137,12,.06)}
+.sct{display:flex;align-items:center;gap:5px;margin-bottom:1px}
+.num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;font-family:'IBM Plex Mono',monospace;flex-shrink:0;color:#fff}
+.sid{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--orange);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{font-size:8px;padding:1px 4px;border-radius:3px;font-weight:700;white-space:nowrap}
+.bd{background:rgba(74,158,255,.12);color:var(--blue);border:1px solid rgba(74,158,255,.25)}
+.bc{background:rgba(245,166,35,.12);color:#b8860b;border:1px solid rgba(245,166,35,.25)}
+.br{background:rgba(255,71,87,.12);color:var(--red);border:1px solid rgba(255,71,87,.25)}
+.sc-name{font-size:11px;font-weight:700;color:var(--text);margin-bottom:1px;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.sc-name .sc-phone{color:var(--blue);font-size:9px;font-weight:600}
+.sc-addr{font-size:10px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-btm{display:flex;justify-content:space-between;margin-top:3px}
+.sc-coords{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-dim)}
+.sc-dist{font-size:9px;color:var(--text-dim)}.sc-actions{display:flex;gap:2px;margin-right:auto}
+.sc-actions button{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:11px;padding:0 2px;transition:color .12s}
+.sc-actions button:hover{color:var(--text)}.sc-actions .mv:hover{color:var(--blue)}
+/* ADD FORM */
+.addform{border-top:1px solid var(--border);padding:7px 8px;flex-shrink:0}
+.addform .fl{font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.frow{display:flex;gap:4px;margin-bottom:4px}
+.fg{flex:1;display:flex;flex-direction:column;gap:1px}
+.fg label{font-size:9px;color:var(--text-muted);font-weight:600}
+input,select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'Cairo',sans-serif;font-size:11px;padding:4px 6px;outline:none;transition:border-color .15s}
+input:focus,select:focus{border-color:var(--orange)}input::placeholder{color:var(--text-dim)}
+.addform .hint{font-size:9px;color:var(--orange);margin-top:2px}
+/* GM BOX */
+.gm-box{border-top:1px solid var(--border);padding:6px 8px;flex-shrink:0;background:rgba(66,133,244,.03);border-bottom:1px solid var(--border)}
+.gm-lbl{font-size:9px;font-weight:700;color:#4285f4;letter-spacing:.5px;margin-bottom:3px;display:flex;align-items:center;gap:4px}
+.gm-wrap{display:flex;gap:4px}
+.gm-input{flex:1;background:var(--bg);border:1px solid #4285f430;border-radius:5px;color:var(--text);font-family:'Cairo',sans-serif;font-size:10px;padding:4px 6px;outline:none}
+.gm-input:focus{border-color:#4285f4}
+.gm-btn{background:#4285f4;color:#fff;border:none;padding:4px 8px;border-radius:5px;font-family:'Cairo',sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.gm-btn:hover{background:#357ae8}
+.gm-preview{margin-top:4px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:5px 7px;display:none;font-size:10px}
+.gm-preview .gm-coords{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--green)}
+.gm-preview .gm-name{font-size:10px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gm-preview .gm-actions{display:flex;gap:4px;margin-top:3px}
+.gm-err{font-size:10px;color:var(--red);display:none;margin-top:3px}
+.gm-results{display:none;margin-top:4px;flex-direction:column;gap:2px;max-height:120px;overflow-y:auto}
+.gm-results .gr{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:5px 7px;cursor:pointer;font-size:10px;display:flex;justify-content:space-between;align-items:center;transition:border-color .12s}
+.gm-results .gr:hover{border-color:var(--orange)}
+.gm-results .gr .gr-n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gm-results .gr .gr-c{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-dim);margin-right:4px;flex-shrink:0}
+.gm-loading{display:none;padding:4px 0;font-size:10px;color:var(--blue);align-items:center;gap:5px}
+.gm-loading .spinner{width:10px;height:10px;border:2px solid var(--blue);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* EXPORT PANEL */
+.ep{padding:8px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+.ec{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;cursor:pointer;transition:border-color .12s;display:flex;align-items:center;gap:8px}
+.ec:hover{border-color:var(--orange)}.ec .eci{font-size:16px;flex-shrink:0}.ec .ect{font-size:12px;font-weight:700}
+.ec .ecd{font-size:10px;color:var(--text-muted);margin-top:1px}
+/* API PANEL */
+.ap{padding:8px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:7px}
+.as{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px}
+.ast{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px}
+.af{margin-bottom:4px}.af label{display:block;font-size:9px;color:var(--text-muted);font-weight:600;margin-bottom:1px}
+.stbar{margin-top:4px;padding:3px 6px;border-radius:5px;font-size:10px;font-family:'IBM Plex Mono',monospace;display:none}
+.st-ok{background:rgba(45,206,126,.1);border:1px solid rgba(45,206,126,.3);color:var(--green)}
+.st-err{background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);color:var(--red)}
+.st-load{background:rgba(74,158,255,.1);border:1px solid rgba(74,158,255,.3);color:var(--blue)}
+.ahint{font-size:9px;color:var(--text-dim);line-height:1.5}
+code{color:var(--orange);font-family:'IBM Plex Mono',monospace;font-size:9px}
+/* FLOAT STATS */
+.rfloat{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.96);border:1px solid var(--border);border-radius:10px;padding:7px 12px;z-index:1000;display:none;gap:12px;box-shadow:0 3px 15px rgba(0,0,0,.08)}
+.rfloat .rs{text-align:center}
+.rfloat .rsv{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--orange)}
+.rfloat .rsl{font-size:9px;color:var(--text-dim);margin-top:0}
+/* OVERLAYS */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;width:420px;max-width:92vw;max-height:85vh;overflow-y:auto}
+.modal h3{font-size:13px;font-weight:700;margin-bottom:6px}
+.modal p{font-size:10px;color:var(--text-muted);margin-bottom:8px;line-height:1.5}
+.modal .ma{display:flex;gap:6px;justify-content:flex-end;margin-top:8px}
+.hidden{display:none!important}
+textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:9px;padding:5px;outline:none;resize:none;line-height:1.3}
+textarea:focus{border-color:var(--orange)}
+/* EMPTY STATE */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 12px;color:var(--text-dim);text-align:center;flex:1}
+.empty-i{font-size:26px;margin-bottom:6px}.empty-t{font-size:12px;font-weight:700;color:var(--text-muted)}.empty-s{font-size:10px;line-height:1.5}
+/* POPUP */
+.leaflet-popup-content-wrapper{background:var(--surface)!important;border:1px solid var(--border)!important;border-radius:9px!important;color:var(--text)!important;box-shadow:0 3px 15px rgba(0,0,0,.1)!important;font-family:'Cairo',sans-serif!important}
+.leaflet-popup-tip{background:var(--surface)!important}
+.popup-c{font-family:'Cairo',sans-serif}
+.popup-c .pu-user{font-size:9px;color:var(--text-muted);letter-spacing:.5px;margin-bottom:2px;display:flex;align-items:center;gap:4px}
+.popup-c .pu-user .pu-dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+.popup-c .pu-name{font-size:14px;font-weight:700;color:var(--text)}
+.popup-c .pu-phone{font-size:11px;color:var(--blue)}
+.popup-c .pu-id{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--orange);margin:2px 0}
+.popup-c .pu-addr{font-size:11px;color:var(--text-muted)}
+.popup-c .pu-badge{margin:3px 0}
+.popup-c .pu-coords{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-dim)}
+/* EXPORT PREVIEW */
+#exprev{display:none;margin-top:4px}
+#exprev .exph{font-size:9px;color:var(--text-muted);margin-bottom:2px}
+#exprev textarea{font-size:8px;line-height:1.2}
+/* RESPONSIVE */
+@media(max-width:768px){.sidebar{width:100%;position:absolute;inset:0;z-index:500;border:none}.sidebar.closed{width:0}.stog{display:none}.utab{padding:3px 7px;font-size:10px}.utab .cnt{display:none}.dcard-h .dstats{gap:6px}.dcard-h .dsv{font-size:11px}.dtotal-item .dtv{font-size:14px}.legend{top:45px;right:6px;font-size:9px;min-width:80px}}
+/* MOVE MODAL */
+.mv-grid{display:flex;gap:6px;margin:8px 0}
+.mv-opt{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;cursor:pointer;text-align:center;transition:all .15s}
+.mv-opt:hover{border-color:var(--orange);background:rgba(232,137,12,.05)}
+.mv-opt.selected{border-color:var(--orange);background:rgba(232,137,12,.08)}
+.mv-opt .mv-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-bottom:3px}
+.mv-opt .mv-name{font-size:11px;font-weight:700;display:block}
+.mv-opt .mv-cnt{font-size:9px;color:var(--text-dim);display:block;margin-top:1px}
+/* USER SETTINGS MODAL */
+.us-row{display:flex;gap:6px;margin-bottom:5px;align-items:center}
+.us-row .us-color{width:24px;height:24px;border-radius:6px;flex-shrink:0;border:2px solid var(--border)}
+.us-row input{flex:1}
+/* MHINT */
+.mhint{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.88);border:1px solid var(--border);border-radius:16px;padding:3px 10px;font-size:10px;color:var(--text-dim);z-index:999;pointer-events:none;white-space:nowrap;box-shadow:0 1px 6px rgba(0,0,0,.04)}
+/* LOGIN SCREEN */
+.login-overlay{position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#f2efe9 0%,#e8e3d9 100%);display:flex;align-items:center;justify-content:center}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 24px;width:360px;max-width:92vw;box-shadow:0 8px 40px rgba(0,0,0,.08)}
+.login-logo{text-align:center;margin-bottom:20px}
+.login-logo .ll-icon{width:48px;height:48px;background:var(--orange);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 8px}
+.login-logo .ll-title{font-size:18px;font-weight:900;letter-spacing:-.5px}
+.login-logo .ll-title span{color:var(--orange)}
+.login-logo .ll-sub{font-size:11px;color:var(--text-dim);margin-top:2px}
+.login-field{margin-bottom:12px}
+.login-field label{display:block;font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:4px}
+.login-field input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Cairo',sans-serif;font-size:14px;padding:9px 11px;outline:none;transition:border-color .15s}
+.login-field input:focus{border-color:var(--orange)}
+.login-btn{width:100%;background:var(--orange);color:#fff;border:none;border-radius:8px;font-family:'Cairo',sans-serif;font-weight:700;font-size:14px;padding:10px;cursor:pointer;transition:background .15s;margin-top:4px}
+.login-btn:hover{background:#c9770a}
+.login-error{font-size:11px;color:var(--red);text-align:center;margin-top:8px;display:none}
+.login-footer{text-align:center;margin-top:14px;font-size:10px;color:var(--text-dim)}
+.login-users{display:flex;gap:4px;margin-top:12px;justify-content:center;flex-wrap:wrap}
+.login-users .lu{font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer;transition:all .12s;font-family:'Cairo',sans-serif}
+.login-users .lu:hover{background:var(--border);color:var(--text)}
+#app{display:none;flex-direction:column;height:100vh}
+#app.show{display:flex}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="ll-icon">📦</div>
+      <div class="ll-title">Ship<span>Blu</span> Route</div>
+      <div class="ll-sub">تسجيل الدخول</div>
+    </div>
+    <form id="loginForm" onsubmit="event.preventDefault();doLogin();return false">
+    <div class="login-field">
+      <label>اسم المستخدم</label>
+      <input id="loginUser" type="text" placeholder="u1 / u2 / u3 / admin" autocomplete="off">
+    </div>
+    <div class="login-field">
+      <label>كلمة المرور</label>
+      <input id="loginPass" type="password" placeholder="******">
+    </div>
+    <button class="login-btn" type="submit">دخول</button>
+    </form>
+    <div class="login-error" id="loginError">❌ اسم المستخدم أو كلمة المرور خطأ</div>
+    <div class="login-users">
+      <button class="lu" onclick="quickLogin('u1')">مندوب 1</button>
+      <button class="lu" onclick="quickLogin('u2')">مندوب 2</button>
+      <button class="lu" onclick="quickLogin('u3')">مندوب 3</button>
+      <button class="lu" onclick="quickLogin('admin')">مدير</button>
+    </div>
+    <div class="login-footer">للتجربة: اضغط على اسم المستخدم</div>
+  </div>
+</div>
+
+<div id="app">
+<header>
+  <div class="logo"><div class="logo-i">📦</div><div class="logo-t">Ship<span>Blu</span> Route</div></div>
+  <div class="utabs" id="utabs"></div>
+  <div class="hacts">
+    <div class="pills" id="hPills"></div>
+    <button class="btn btn2" onclick="openUserSettings()">⚙️</button>
+    <button class="btn btn2" onclick="optimize()">⚡ ترتيب</button>
+    <button class="btn btn2" onclick="loadDemo()">🔀 تجريبي</button>
+    <button class="btn" onclick="openImp()">📥 استيراد</button>
+    <button class="btn btn2" onclick="logout()" title="تسجيل خروج" style="font-size:9px">🚪</button>
+  </div>
+</header>
+
+<div class="main">
+  <div id="map"></div>
+  <div class="mhint">🖱 انقر على الخريطة لإضافة شحنة</div>
+
+  <!-- Legend -->
+  <div class="legend" id="legend"></div>
+
+  <!-- Route float -->
+  <div class="rfloat" id="rfloat">
+    <div class="rs"><div class="rsv" id="rf-n">0</div><div class="rsl">نقطة</div></div>
+    <div class="rs"><div class="rsv" id="rf-d">—</div><div class="rsl">مسافة</div></div>
+    <div class="rs"><div class="rsv" id="rf-t">—</div><div class="rsl">وقت</div></div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sb">
+    <div class="tabs">
+      <button class="tab on" onclick="swPanel('dash',this)">📊 لوحة التحكم</button>
+      <button class="tab" onclick="swPanel('ships',this)">📦 الشحنات</button>
+      <button class="tab" onclick="swPanel('export',this)">📤 تصدير</button>
+    </div>
+    <div class="panels">
+      <!-- DASHBOARD -->
+      <div class="panel on" id="panel-dash"><div class="dash" id="dash"></div></div>
+      <!-- SHIPMENTS -->
+      <div class="panel" id="panel-ships">
+        <div class="ship-panel">
+          <div class="topinfo">
+            <div class="ti" id="curUserLabel">👤 <span id="curUserName">—</span></div>
+            <div class="tia"><span style="font-size:10px;color:var(--text-dim)" id="shipsCount">0</span><button class="btn btn2" style="font-size:9px;padding:2px 5px" onclick="renameUser()">✏️</button></div>
+          </div>
+          <div class="fbar">
+            <button class="fb on" onclick="sf('all',this)">الكل</button>
+            <button class="fb" onclick="sf('delivery',this)">توصيل</button>
+            <button class="fb" onclick="sf('cash',this)">كاش</button>
+            <button class="fb" onclick="sf('return',this)">مرتجع</button>
+          </div>
+          <div class="slist" id="sl"></div>
+          <div class="gm-box">
+            <div class="gm-lbl">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="#4285f4"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+              بحث أو رابط Google Maps
+            </div>
+            <div class="gm-wrap">
+              <input class="gm-input" id="gm-url" placeholder="الصق رابط أو اكتب عنوان..." onpaste="setTimeout(()=>gmTrigger(),30)" onkeydown="if(event.key==='Enter')gmTrigger()">
+              <button class="gm-btn" onclick="gmTrigger()">بحث</button>
+            </div>
+            <div class="gm-loading" id="gm-loading"><span class="spinner"></span> جارٍ البحث...</div>
+            <div class="gm-err" id="gm-err"></div>
+            <div class="gm-preview" id="gm-prev">
+              <div class="gm-coords" id="gm-coords">—</div>
+              <div class="gm-name" id="gm-name"></div>
+              <div class="gm-actions">
+                <button class="btn btn2" style="font-size:9px;padding:1px 5px" onclick="gmFlyTo()">👁</button>
+                <button class="gm-btn" style="font-size:9px;padding:1px 6px" onclick="gmAdd()">+ إضافة</button>
+              </div>
+            </div>
+            <div class="gm-results" id="gm-results"></div>
+          </div>
+          <div class="addform">
+            <div class="fl">إضافة شحنة</div>
+            <div class="frow">
+              <div class="fg"><label>رقم</label><input id="i-id" placeholder="SHP-001"></div>
+              <div class="fg"><label>نوع</label><select id="i-tp"><option value="delivery">توصيل</option><option value="cash">كاش</option><option value="return">مرتجع</option></select></div>
+            </div>
+            <div class="frow">
+              <div class="fg"><label>العميل</label><input id="i-cn" placeholder="محمد أحمد"></div>
+              <div class="fg"><label>تليفون</label><input id="i-ph" placeholder="01234567890"></div>
+            </div>
+            <div class="frow">
+              <div class="fg"><label>Lat</label><input id="i-la" type="number" step="any" placeholder="30.0444"></div>
+              <div class="fg"><label>Lng</label><input id="i-ln" type="number" step="any" placeholder="31.2357"></div>
+            </div>
+            <div class="frow" style="margin-bottom:0"><div class="fg"><label>العنوان</label><input id="i-ad" placeholder="شارع التحرير، القاهرة"></div></div>
+            <div class="hint">💡 انقر على الخريطة أو الصق Google Maps</div>
+            <div style="display:flex;gap:5px;margin-top:5px">
+              <button class="btn" style="flex:1;font-size:11px" onclick="addShipment()">+ إضافة</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- EXPORT -->
+      <div class="panel" id="panel-export">
+        <div class="ep">
+          <div class="ec" onclick="expJSON()"><div class="eci">📄</div><div><div class="ect">JSON</div><div class="ecd">تصدير كل المستخدمين</div></div></div>
+          <div class="ec" onclick="expCSV()"><div class="eci">📊</div><div><div class="ect">CSV</div><div class="ecd">مناسب لـ Excel</div></div></div>
+          <div class="ec" onclick="expGM()"><div class="eci">🗺️</div><div><div class="ect">Google Maps</div><div class="ecd">فتح المسار (أقصى 10)</div></div></div>
+          <div class="ec" onclick="expWaze()"><div class="eci">🚗</div><div><div class="ect">Waze</div><div class="ecd">ملاحة لأول شحنة</div></div></div>
+          <div class="ec" onclick="copyCoords()"><div class="eci">📋</div><div><div class="ect">نسخ الإحداثيات</div><div class="ecd">كل الشحنات للمستخدم الحالي</div></div></div>
+          <div id="exprev" style="display:none;padding:4px 0">
+            <div class="exph">معاينة:</div>
+            <textarea id="exptxt" rows="5" readonly></textarea>
+            <button class="btn btn2" style="width:100%;margin-top:3px;font-size:11px" onclick="copyExp()">📋 نسخ</button>
+          </div>
+          <div style="margin-top:auto;padding-top:6px;border-top:1px solid var(--border)">
+            <div class="ast" style="font-size:9px;margin-bottom:4px">🔗 ShipBlu API</div>
+            <div class="af"><label>URL</label><input id="a-url" value="https://api.shipblu.com" style="font-size:10px"></div>
+            <div class="af"><label>Token / Api-Key</label><input id="a-tok" type="password" style="font-size:10px"></div>
+            <div style="display:flex;gap:4px;margin-top:3px">
+              <button class="btn" style="flex:1;font-size:10px" onclick="fetchAPI()">🔄 جلب</button>
+              <button class="btn btn2" style="font-size:10px" onclick="testAPI()">اختبار</button>
+            </div>
+            <div class="stbar" id="ast"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="stog" onclick="toggleSB()">›</div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="overlay hidden" id="impMod">
+  <div class="modal">
+    <h3>📥 استيراد JSON</h3>
+    <p>الصق البيانات. الإحداثيات (lat/lng) مطلوبة.</p>
+    <textarea id="jimp" rows="8" placeholder='[{"id":"SBL-001","type":"delivery","customer":"محمد","phone":"01234","lat":30.05,"lng":31.23,"address":"..."}]'></textarea>
+    <div class="ma">
+      <button class="btn btn2" onclick="closeImp()">إلغاء</button>
+      <button class="btn" onclick="importJSON()">استيراد</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAP CLICK MODAL -->
+<div class="overlay hidden" id="clkMod">
+  <div class="modal">
+    <h3>📍 إضافة نقطة</h3>
+    <div id="clk-crd" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-muted);padding:5px 7px;background:var(--bg);border-radius:5px;margin-bottom:8px"></div>
+    <div class="frow">
+      <div class="fg"><label>رقم</label><input id="c-id" placeholder="SHP-001"></div>
+      <div class="fg"><label>نوع</label><select id="c-tp"><option value="delivery">توصيل</option><option value="cash">كاش</option><option value="return">مرتجع</option></select></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label>العميل</label><input id="c-cn" placeholder="محمد أحمد"></div>
+      <div class="fg"><label>تليفون</label><input id="c-ph" placeholder="01234567890"></div>
+    </div>
+    <div class="frow" style="margin-bottom:0"><div class="fg"><label>العنوان</label><input id="c-ad" placeholder="اختياري"></div></div>
+    <div class="ma">
+      <button class="btn btn2" onclick="closeClk()">إلغاء</button>
+      <button class="btn" onclick="confirmClk()">إضافة</button>
+    </div>
+  </div>
+</div>
+
+<!-- MOVE MODAL -->
+<div class="overlay hidden" id="mvMod">
+  <div class="modal">
+    <h3>🔄 نقل الشحنة</h3>
+    <p id="mvInfo">نقل الشحنة إلى:</p>
+    <div class="mv-grid" id="mvGrid"></div>
+    <div class="ma">
+      <button class="btn btn2" onclick="closeMv()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- USER SETTINGS MODAL -->
+<div class="overlay hidden" id="usMod">
+  <div class="modal">
+    <h3>⚙️ إعدادات المستخدمين</h3>
+    <p>تعديل أسماء وألوان المستخدمين:</p>
+    <div id="usList"></div>
+    <div class="ma">
+      <button class="btn btn2" onclick="closeUs()">إلغاء</button>
+      <button class="btn" onclick="saveUs()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+const USER_COLORS = ['#e8890c','#4a9eff','#2dce7e'];
+let users = [
+  {id:'u1', name:'مندوب 1', phone:'', color:USER_COLORS[0], ships:[]},
+  {id:'u2', name:'مندوب 2', phone:'', color:USER_COLORS[1], ships:[]},
+  {id:'u3', name:'مندوب 3', phone:'', color:USER_COLORS[2], ships:[]}
+];
+let activeUser = 'u1';
+let filter = 'all';
+let activeIdx = null;
+let mkrs = [], rLines = [], arrs = [];
+let tmpMk = null, sbOpen = true;
+let pLat = null, pLng = null;
+let gmLat = null, gmLng = null, gmPlaceName = '';
+let panel = 'dash';
+
+function getShips() { return users.find(u => u.id === activeUser)?.ships || []; }
+function getActiveUser() { return users.find(u => u.id === activeUser); }
+
+// ── MAP ──
+const map = L.map('map', {center:[30.0444,31.2357], zoom:11, zoomControl:false});
+L.control.zoom({position:'bottomleft'}).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'&copy; OpenStreetMap', maxZoom:19}).addTo(map);
+
+map.on('click', e => {
+  pLat = e.latlng.lat; pLng = e.latlng.lng;
+  if (tmpMk) map.removeLayer(tmpMk);
+  tmpMk = L.circleMarker([pLat,pLng], {radius:8,color:'#e8890c',weight:2,fillColor:'#e8890c',fillOpacity:.4}).addTo(map);
+  document.getElementById('i-la').value = pLat.toFixed(6);
+  document.getElementById('i-ln').value = pLng.toFixed(6);
+  const ships = getShips();
+  document.getElementById('c-id').value = `SHP-${String(ships.length+1).padStart(3,'0')}`;
+  document.getElementById('clk-crd').textContent = `📍 ${pLat.toFixed(5)}, ${pLng.toFixed(5)}`;
+  document.getElementById('clkMod').classList.remove('hidden');
+});
+
+// ── HELPERS ──
+const hav = (a,b,c,d) => { const R=6371,dl=(c-a)*Math.PI/180,dn=(d-b)*Math.PI/180,x=Math.sin(dl/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dn/2)**2; return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)) };
+const tDist = pts => pts.reduce((a,p,i) => i ? a+hav(pts[i-1][0],pts[i-1][1],p[0],p[1]) : 0, 0);
+const fDist = d => d < 1 ? `${(d*1e3).toFixed(0)}m` : `${d.toFixed(1)}km`;
+const fTime = d => { const m=Math.round(d/0.5); return m>60 ? `${Math.floor(m/60)}س ${m%60}د` : `${m}د` };
+const TM = {delivery:'توصيل', cash:'كاش', return:'مرتجع'};
+const BC = {delivery:'bd', cash:'bc', return:'br'};
+const nType = t => { t=String(t).toLowerCase(); if (t.includes('cash')||t.includes('collect')) return 'cash'; if (t.includes('return')||t.includes('rto')) return 'return'; return 'delivery' };
+
+function mkIcon(n, bg) {
+  return L.divIcon({className:'', html:`<div style="width:24px;height:24px;background:${bg};border:2px solid rgba(255,255,255,.6);border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px ${bg}60"><span style="transform:rotate(45deg);font-family:'IBM Plex Mono',monospace;font-weight:700;color:#fff;font-size:8px">${n}</span></div>`, iconSize:[24,24], iconAnchor:[5,24], popupAnchor:[7,-24]});
+}
+
+// ── USER TABS ──
+function renderUserTabs() {
+  const bar = document.getElementById('utabs');
+  bar.innerHTML = users.map(u => {
+    const a = u.id === activeUser;
+    return `<button class="utab${a?' on':''}" onclick="switchUser('${u.id}')"><span class="dot" style="background:${u.color}"></span>${u.name} <span class="cnt">${u.ships.length}</span></button>`;
+  }).join('');
+}
+
+function switchUser(id) {
+  activeUser = id; activeIdx = null; filter = 'all';
+  document.querySelectorAll('.fb').forEach(b => b.classList.remove('on'));
+  document.querySelector('.fb')?.classList.add('on');
+  renderUserTabs(); renderShips(); renderMap(); renderDash(); updateLegend();
+  updateHeaderPills();
+}
+
+// ── DASHBOARD ──
+function renderDash() {
+  const container = document.getElementById('dash');
+  let totalShips = 0, totalDist = 0, types = {delivery:0, cash:0, return:0};
+  const cards = users.map(u => {
+    const ships = u.ships, ll = ships.map(s => [s.lat,s.lng]);
+    const dist = ll.length > 1 ? tDist(ll) : 0;
+    const dTime = fTime(dist);
+    const tCounts = {delivery:0, cash:0, return:0};
+    ships.forEach(s => { tCounts[s.type] = (tCounts[s.type]||0)+1 });
+    totalShips += ships.length; totalDist += dist;
+    types.delivery += tCounts.delivery; types.cash += tCounts.cash; types.return += tCounts.return;
+    const isActive = u.id === activeUser;
+    const typesStr = [`توصيل ${tCounts.delivery}`,`كاش ${tCounts.cash}`,`مرتجع ${tCounts.return}`].filter(x=>!x.endsWith('0')).join(' · ');
+    return `<div class="dcard">
+      <div class="dcard-h" onclick="switchUser('${u.id}')">
+        <div class="dcol" style="background:${u.color}"></div>
+        <div class="dinfo">
+          <div class="dname">${u.name} ${u.phone?`<span class="dphone">📞 ${u.phone}</span>`:''}</div>
+          <div class="dstats">
+            <div class="dstat"><div class="dsv">${ships.length}</div><div class="dsl">شحنة</div></div>
+            <div class="dstat"><div class="dsv">${ll.length>1?fDist(dist):'—'}</div><div class="dsl">مسافة</div></div>
+            <div class="dstat"><div class="dsv">${ll.length>1?dTime:'—'}</div><div class="dsl">وقت</div></div>
+          </div>
+        </div>
+        <div style="color:var(--text-dim);font-size:12px">${isActive?'◉':'○'}</div>
+      </div>
+      <div class="dcard-body${isActive?' open':''}">
+        ${ships.length ? `<div class="dbl"><span>📦 أنواع الشحنات</span><span>${typesStr||'—'}</span></div>` : ''}
+        ${ships.length ? `<div class="dbl"><span>📍 أول نقطة</span><span>${ships[0]?.address?.substring(0,25)||ships[0]?.id||'—'}</span></div>` : ''}
+        ${ships.length>1 ? `<div class="dbl"><span>🏁 آخر نقطة</span><span>${ships[ships.length-1]?.address?.substring(0,25)||ships[ships.length-1]?.id||'—'}</span></div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  container.innerHTML = cards + `
+    <div class="dtotal">
+      <div class="dtotal-h">📊 إجمالي الجميع</div>
+      <div class="dtotal-r">
+        <div class="dtotal-item"><div class="dtv">${totalShips}</div><div class="dtl">شحنة</div></div>
+        <div class="dtotal-item"><div class="dtv">${totalDist?fDist(totalDist):'—'}</div><div class="dtl">مسافة</div></div>
+        <div class="dtotal-item"><div class="dtv">${totalDist?fTime(totalDist):'—'}</div><div class="dtl">وقت</div></div>
+        <div class="dtotal-item"><div class="dtv">${types.delivery}</div><div class="dtl">توصيل</div></div>
+        <div class="dtotal-item"><div class="dtv">${types.cash}</div><div class="dtl">كاش</div></div>
+        <div class="dtotal-item"><div class="dtv">${types.return}</div><div class="dtl">مرتجع</div></div>
+      </div>
+    </div>`;
+}
+
+// ── MAP RENDER ──
+function renderMap() {
+  mkrs.forEach(m => map.removeLayer(m)); mkrs = [];
+  rLines.forEach(l => map.removeLayer(l)); rLines = [];
+  arrs.forEach(a => map.removeLayer(a)); arrs = [];
+
+  const visible = users.filter(u => !document.getElementById(`leg-${u.id}`)?.classList.contains('hidden'));
+  let allPts = [];
+
+  visible.forEach(u => {
+    const ships = u.ships;
+    const idxs = filter === 'all' ? ships.map((_,i) => i) : ships.map((_,i) => i).filter(i => ships[i].type === filter);
+    const onlyActive = u.id === activeUser;
+
+    idxs.forEach((si, pos) => {
+      const s = ships[si];
+      const isF = pos === 0, isL = pos === idxs.length - 1;
+      const iconBg = onlyActive ? (isF ? '#a855f7' : isL ? '#2dce7e' : u.color) : u.color;
+      const m = L.marker([s.lat,s.lng], {icon:mkIcon(onlyActive?pos+1:'',iconBg)}).addTo(map)
+        .bindPopup(`<div class="popup-c"><div class="pu-user"><span class="pu-dot" style="background:${u.color}"></span>${u.name}</div><div class="pu-name">${s.customer||''}</div>${s.phone?`<div class="pu-phone">📞 ${s.phone}</div>`:''}<div class="pu-id">${s.id}</div><div class="pu-addr">${s.address||'بدون عنوان'}</div><div style="margin:2px 0"><span class="badge ${BC[s.type]||'bd'}">${TM[s.type]||s.type}</span></div><div class="pu-coords">${s.lat.toFixed(5)}, ${s.lng.toFixed(5)}</div></div>`);
+      if (onlyActive) { m.on('click', () => { activeIdx = si; renderShips(); }); }
+      mkrs.push(m); allPts.push([s.lat,s.lng]);
+    });
+
+    if (idxs.length > 1 && onlyActive) {
+      const ll = idxs.map(i => [ships[i].lat, ships[i].lng]);
+      rLines.push(L.polyline(ll, {color:'#000',weight:3,opacity:.1}).addTo(map));
+      rLines.push(L.polyline(ll, {color:u.color,weight:2.5,opacity:.8,dashArray:'6,3'}).addTo(map));
+      for (let i=0; i<ll.length-1; i++) {
+        const a=ll[i], b=ll[i+1], mid=[(a[0]+b[0])/2, (a[1]+b[1])/2];
+        const ang = Math.atan2(b[1]-a[1], b[0]-a[0]) * 180 / Math.PI;
+        arrs.push(L.marker(mid, {icon:L.divIcon({className:'', html:`<div style="transform:rotate(${ang}deg);color:${u.color};font-size:10px;text-shadow:0 0 2px rgba(0,0,0,.3);line-height:1">➤</div>`, iconSize:[10,10], iconAnchor:[5,5]}), interactive:false}).addTo(map));
+      }
+    }
+  });
+
+  // Show stats for active user only
+  const activeShips = getShips();
+  const activeIdxes = filter === 'all' ? activeShips.map((_,i) => i) : activeShips.map((_,i) => i).filter(i => activeShips[i].type === filter);
+  const actLl = activeIdxes.map(i => [activeShips[i].lat, activeShips[i].lng]);
+
+  if (allPts.length) {
+    map.fitBounds(L.polyline(allPts).getBounds(), {padding:[40,40]});
+  }
+  if (actLl.length > 1) {
+    const dist = tDist(actLl);
+    document.getElementById('rf-n').textContent = activeIdxes.length;
+    document.getElementById('rf-d').textContent = fDist(dist);
+    document.getElementById('rf-t').textContent = fTime(dist);
+    document.getElementById('rfloat').style.display = 'flex';
+  } else {
+    document.getElementById('rfloat').style.display = 'none';
+  }
+}
+
+// ── LEGEND ──
+function updateLegend() {
+  const el = document.getElementById('legend');
+  el.innerHTML = users.map(u => {
+    const h = document.getElementById(`leg-${u.id}`)?.classList.contains('hidden');
+    return `<div class="legend-item${h?' hidden':''}" id="leg-${u.id}" onclick="toggleUser('${u.id}')"><span class="ldot" style="background:${u.color}"></span><span class="lname">${u.name}</span><span class="lcnt">${u.ships.length}</span></div>`;
+  }).join('');
+}
+
+function toggleUser(id) {
+  const el = document.getElementById(`leg-${id}`);
+  el.classList.toggle('hidden');
+  renderMap();
+}
+
+// ── SHIPMENTS LIST ──
+function renderShips() {
+  const ships = getShips(), user = getActiveUser();
+  document.getElementById('curUserName').textContent = user?.name||'—';
+  document.getElementById('shipsCount').textContent = `${ships.length} شحنة`;
+
+  const sl = document.getElementById('sl');
+  const idxs = filter === 'all' ? ships.map((_,i) => i) : ships.map((_,i) => i).filter(i => ships[i].type === filter);
+
+  if (!ships.length) {
+    sl.innerHTML = '<div class="empty"><div class="empty-i">📦</div><div class="empty-t">لا توجد شحنات</div><div class="empty-s">أضف شحنة من النموذج بالأسفل<br>أو انقر على الخريطة</div></div>';
+    return;
+  }
+
+  sl.innerHTML = idxs.map((si, pos) => {
+    const s = ships[si], dp = pos > 0 ? hav(ships[idxs[pos-1]].lat, ships[idxs[pos-1]].lng, s.lat, s.lng) : null;
+    return `<div class="sc${activeIdx===si?' active':''}" onclick="selectShip(${si})" data-idx="${si}">
+      <div class="sct">
+        <div class="num" style="background:${user?.color||'#e8890c'}">${pos+1}</div>
+        <div class="sid">${s.id}</div>
+        <span class="badge ${BC[s.type]||'bd'}">${TM[s.type]||s.type}</span>
+        <div class="sc-actions">
+          <button class="mv" onclick="event.stopPropagation();openMv(${si})" title="نقل">↗</button>
+          <button onclick="event.stopPropagation();removeS(${si})" title="حذف">×</button>
+        </div>
+      </div>
+      <div class="sc-name">${s.customer||''}${s.phone?`<span class="sc-phone">📞 ${s.phone}</span>`:''}</div>
+      <div class="sc-addr">${s.address||'بدون عنوان'}</div>
+      <div class="sc-btm">
+        <div class="sc-coords">${s.lat.toFixed(4)},${s.lng.toFixed(4)}</div>
+        <div class="sc-dist">${dp!==null?`↑ ${fDist(dp)}`:'🚩 البداية'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectShip(si) { activeIdx = si; renderShips(); const idxs = (filter==='all'?getShips().map((_,i)=>i):getShips().map((_,i)=>i).filter(i=>getShips()[i].type===filter)); const pos=idxs.indexOf(si); if(pos>=0&&mkrs[pos])mkrs[pos].openPopup(); }
+
+// ── FILTER ──
+function sf(f, btn) { filter = f; document.querySelectorAll('.fb').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); renderShips(); renderMap(); }
+
+// ── ADD / REMOVE ──
+function addShipment(ov) {
+  const ships = getShips();
+  const lat = parseFloat(ov?.lat ?? document.getElementById('i-la').value);
+  const lng = parseFloat(ov?.lng ?? document.getElementById('i-ln').value);
+  if (isNaN(lat)||isNaN(lng)) { alert('إحداثيات غير صحيحة'); return; }
+  const id = (ov?.id ?? document.getElementById('i-id').value.trim()) || `SHP-${String(ships.length+1).padStart(3,'0')}`;
+  const type = ov?.type ?? document.getElementById('i-tp').value;
+  const address = ov?.address ?? document.getElementById('i-ad').value.trim();
+  const customer = ov?.customer ?? document.getElementById('i-cn').value.trim();
+  const phone = ov?.phone ?? document.getElementById('i-ph').value.trim();
+  ships.push({id,lat,lng,type,address,customer,phone});
+  ['i-id','i-cn','i-ph','i-la','i-ln','i-ad'].forEach(x=>document.getElementById(x).value='');
+  if (tmpMk) { map.removeLayer(tmpMk); tmpMk = null; }
+  activeIdx = ships.length - 1; renderAll();
+}
+
+function removeS(i) { getShips().splice(i,1); activeIdx = null; renderAll(); }
+
+// ── MAP CLICK MODAL ──
+function closeClk() { document.getElementById('clkMod').classList.add('hidden'); if (tmpMk) { map.removeLayer(tmpMk); tmpMk = null; } }
+function confirmClk() {
+  const ships = getShips();
+  const id = document.getElementById('c-id').value.trim() || `SHP-${String(ships.length+1).padStart(3,'0')}`;
+  const type = document.getElementById('c-tp').value;
+  const address = document.getElementById('c-ad').value.trim();
+  const customer = document.getElementById('c-cn').value.trim();
+  const phone = document.getElementById('c-ph').value.trim();
+  ships.push({id,lat:pLat,lng:pLng,type,address,customer,phone});
+  document.getElementById('clkMod').classList.add('hidden');
+  if (tmpMk) { map.removeLayer(tmpMk); tmpMk = null; }
+  activeIdx = ships.length - 1; renderAll();
+}
+
+// ── OPTIMIZE ──
+function optimize() {
+  const ships = getShips();
+  if (ships.length < 3) return;
+  const u = [...ships], r = [u.shift()];
+  while (u.length) { const l = r[r.length-1]; let bi=0,bd=Infinity; u.forEach((s,i)=>{const d=hav(l.lat,l.lng,s.lat,s.lng);if(d<bd){bd=d;bi=i}}); r.push(u.splice(bi,1)[0]); }
+  ships.length = 0; ships.push(...r); activeIdx = null; renderAll();
+}
+
+// ── MOVE SHIPMENT ──
+let movingIdx = null;
+function openMv(idx) {
+  movingIdx = idx; const s = getShips()[idx];
+  document.getElementById('mvInfo').textContent = `نقل "${s.id}" إلى:`;
+  const grid = document.getElementById('mvGrid');
+  grid.innerHTML = users.filter(u => u.id !== activeUser).map(u => {
+    return `<div class="mv-opt" onclick="confirmMv('${u.id}')"><span class="mv-dot" style="background:${u.color}"></span><span class="mv-name">${u.name}</span><span class="mv-cnt">${u.ships.length} شحنة</span></div>`;
+  }).join('');
+  document.getElementById('mvMod').classList.remove('hidden');
+}
+function closeMv() { document.getElementById('mvMod').classList.add('hidden'); movingIdx = null; }
+function confirmMv(toUserId) {
+  const fromShips = getShips(); const toUser = users.find(u => u.id === toUserId);
+  if (movingIdx === null || !toUser) return;
+  const [item] = fromShips.splice(movingIdx, 1);
+  toUser.ships.push(item); movingIdx = null; activeIdx = null;
+  document.getElementById('mvMod').classList.add('hidden'); renderAll();
+}
+
+// ── USER SETTINGS ──
+function openUserSettings() {
+  const list = document.getElementById('usList');
+  list.innerHTML = users.map((u,i) => {
+    return `<div class="us-row"><div class="us-color" style="background:${u.color}"></div><div class="fg"><label>اسم المستخدم ${i+1}</label><input class="us-name" data-idx="${i}" value="${u.name}"></div><div class="fg" style="max-width:80px"><label>تليفون</label><input class="us-phone" data-idx="${i}" value="${u.phone}"></div></div>`;
+  }).join('');
+  document.getElementById('usMod').classList.remove('hidden');
+}
+function closeUs() { document.getElementById('usMod').classList.add('hidden'); }
+function saveUs() {
+  document.querySelectorAll('.us-name').forEach(inp => { const i=parseInt(inp.dataset.idx); if(users[i]) users[i].name = inp.value.trim()||users[i].name; });
+  document.querySelectorAll('.us-phone').forEach(inp => { const i=parseInt(inp.dataset.idx); if(users[i]) users[i].phone = inp.value.trim(); });
+  document.getElementById('usMod').classList.add('hidden'); renderAll();
+}
+function renameUser() { openUserSettings(); }
+
+// ── IMPORT ──
+function openImp() { document.getElementById('impMod').classList.remove('hidden'); }
+function closeImp() { document.getElementById('impMod').classList.add('hidden'); }
+function importJSON() {
+  const ships = getShips();
+  let raw = document.getElementById('jimp').value.trim(), data;
+  try { data = JSON.parse(raw); } catch(e) { alert('JSON غير صالح: '+e.message); return; }
+  if (!Array.isArray(data)) data = data.results ?? data.data ?? data.orders ?? [data];
+  let added = 0;
+  data.forEach((item,i) => {
+    const orders = item.deliveryOrders ?? item.cashOrders ?? item.returnOrders ?? [item];
+    orders.forEach(o => {
+      const lat = parseFloat(o.customerAddressLatitude ?? o.lat ?? o.latitude ?? o.customer_lat);
+      const lng = parseFloat(o.customerAddressLongitude ?? o.lng ?? o.longitude ?? o.customer_lng);
+      if (isNaN(lat)||isNaN(lng)) return;
+      const id = String(o.id ?? o.tracking_number ?? o.order_id ?? `IMP-${i}-${added}`);
+      const type = o.type ?? o.order_type ?? o.taskType ?? 'delivery';
+      const address = o.customerAddressLine1 ?? o.address ?? o.customerAddressLine2 ?? '';
+      const customer = o.customer ?? o.full_name ?? o.customer_name ?? o.name ?? '';
+      const phone = o.phone ?? o.customerPhone ?? o.customer_phone ?? o.mobile ?? '';
+      ships.push({id,lat,lng,type:nType(type),address,customer,phone}); added++;
+    });
+  });
+  closeImp(); document.getElementById('jimp').value = '';
+  if (!added) { alert('لم يتم العثور على إحداثيات صالحة'); return; }
+  activeIdx = null; renderAll();
+}
+
+// ── EXPORT ──
+function expJSON() {
+  const data = {generated:new Date().toISOString(), totalUsers: users.length, totalShips: users.reduce((a,u)=>a+u.ships.length,0), users: users.map(u=>({name:u.name,phone:u.phone,color:u.color,ships:u.ships.map((s,i)=>({...s,stop:i+1})), totalDistance: u.ships.length>1?fDist(tDist(u.ships.map(s=>[s.lat,s.lng]))):'—'}))};
+  showExp(JSON.stringify(data,null,2)); dlFile('route-tracker.json', JSON.stringify(data,null,2), 'application/json');
+}
+function expCSV() {
+  const rows = [['User','Stop','ID','Customer','Phone','Type','Address','Lat','Lng']];
+  users.forEach(u => u.ships.forEach((s,i) => rows.push([u.name,i+1,s.id,s.customer||'',s.phone||'',TM[s.type]||s.type,s.address||'',s.lat,s.lng])));
+  showExp(rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n')); dlFile('route-tracker.csv', rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n'), 'text/csv');
+}
+function expGM() { const s=getShips(); if(!s.length) return; const p=s.slice(0,10).map(x=>`${x.lat},${x.lng}`), o=p.shift(), d=p.pop()||o, w=p.length?`&waypoints=${p.join('|')}`:''; window.open(`https://www.google.com/maps/dir/?api=1&origin=${o}&destination=${d}${w}&travelmode=driving`,'_blank'); }
+function expWaze() { const s=getShips(); if(!s.length) return; window.open(`https://waze.com/ul?ll=${s[0].lat},${s[0].lng}&navigate=yes`,'_blank'); }
+function copyCoords() { const s=getShips(); const t=s.map((x,i)=>`${i+1}. ${x.id}: ${x.lat},${x.lng}`).join('\n'); showExp(t); navigator.clipboard.writeText(t).catch(()=>{}); }
+function showExp(t) { document.getElementById('exprev').style.display='block'; document.getElementById('exptxt').value=t; }
+function copyExp() { navigator.clipboard.writeText(document.getElementById('exptxt').value).then(()=>{const b=document.querySelector('#exprev .btn'); if(b){b.textContent='✅ تم'; setTimeout(()=>b.textContent='📋 نسخ',1500)}}); }
+function dlFile(n,c,t) { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([c],{type:t})); a.download=n; a.click(); }
+
+// ── API ──
+async function testAPI() { showAPISt('load','⏳...'); const u=document.getElementById('a-url').value.trim(), t=document.getElementById('a-tok').value.trim(); if(!u||!t){showAPISt('err','❌ أدخل URL وToken');return} try{const h={'Authorization':t.startsWith('Api-Key')?t:`Api-Key ${t}`,'Content-Type':'application/json'}; const r=await fetch(`${u}/api/v1/task-sheets/?limit=1`,{headers:h}); r.ok?showAPISt('ok',`✅ ${r.status}`):showAPISt('err',`❌ ${r.status}`);}catch(e){showAPISt('err','❌ '+e.message)} }
+async function fetchAPI() { showAPISt('load','⏳ جلب...'); const u=document.getElementById('a-url').value.trim(), t=document.getElementById('a-tok').value.trim(); if(!u||!t){showAPISt('err','❌ أدخل URL وToken');return} try{const h={'Authorization':t.startsWith('Api-Key')?t:`Api-Key ${t}`,'Content-Type':'application/json'}; const r=await fetch(`${u}/api/v1/task-sheets/`,{headers:h}); if(!r.ok){showAPISt('err',`❌ ${r.status}`);return} const j=await r.json(); let items=Array.isArray(j)?j:j.results??j.data??j.orders??[]; const ships=getShips(); let added=0; items.forEach((item,i)=>{const orders=[...(item.deliveryOrders||[]),...(item.cashOrders||[]),...(item.returnOrders||[])].flat(); const list=orders.length?orders:[item]; list.forEach(o=>{const lat=parseFloat(o.customerAddressLatitude??o.lat??o.latitude);const lng=parseFloat(o.customerAddressLongitude??o.lng??o.longitude);if(isNaN(lat)||isNaN(lng))return;const id=String(o.id??o.tracking_number??`API-${i}-${added}`);const type=o.type??o.order_type??'delivery';const address=o.customerAddressLine1??o.address??'';const customer=o.customer??o.full_name??o.customer_name??o.name??'';const phone=o.phone??o.customerPhone??o.customer_phone??o.mobile??'';ships.push({id,lat,lng,type:nType(type),address,customer,phone});added++})}); showAPISt('ok',`✅ ${added} شحنة`); activeIdx=null; renderAll();}catch(e){showAPISt('err','❌ '+e.message)} }
+function showAPISt(t,m) { const e=document.getElementById('ast'); e.style.display='block'; e.className=`stbar st-${t}`; e.textContent=m; }
+
+// ── PANEL SWITCH ──
+function swPanel(id, btn) {
+  panel = id;
+  document.querySelectorAll('.sidebar .panel').forEach(p => p.classList.remove('on'));
+  document.getElementById('panel-'+id).classList.add('on');
+  document.querySelectorAll('.sidebar .tab').forEach(t => t.classList.remove('on'));
+  if (btn) btn.classList.add('on');
+  if (id === 'dash') renderDash();
+  if (id === 'ships') renderShips();
+}
+
+// ── SIDEBAR TOGGLE ──
+function toggleSB() { sbOpen = !sbOpen; const sb=document.getElementById('sb'), tog=document.querySelector('.stog'); sb.style.width=sbOpen?'350px':'0'; tog.style.left=sbOpen?'350px':'0'; tog.textContent=sbOpen?'›':'‹'; }
+
+// ── GOOGLE MAPS ──
+function gmParse(raw) {
+  raw=(raw||'').trim(); document.getElementById('gm-prev').style.display='none'; document.getElementById('gm-err').style.display='none'; if(!raw) return;
+  let lat=null, lng=null, name='';
+  const d=/^(-?\d{1,3}\.\d+)\s*[,،]\s*(-?\d{1,3}\.\d+)$/.exec(raw); if(d) { lat=parseFloat(d[1]); lng=parseFloat(d[2]); name='إحداثيات مباشرة'; }
+  if(!lat) { const m=/@(-?\d+\.\d+),(-?\d+\.\d+)/.exec(raw); if(m) { lat=parseFloat(m[1]); lng=parseFloat(m[2]); } }
+  if(!lat) { const m=/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/.exec(raw); if(m) { lat=parseFloat(m[1]); lng=parseFloat(m[2]); } }
+  if(!lat) { const m=/[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)/.exec(raw); if(m) { lat=parseFloat(m[1]); lng=parseFloat(m[2]); } }
+  if(!lat) { const m=/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/.exec(raw); if(m) { lat=parseFloat(m[1]); lng=parseFloat(m[2]); } }
+  if(!lat) { const m=/\/place\/([^/@]+)\/@?(-?\d+\.\d+),(-?\d+\.\d+)/.exec(raw); if(m) { name=decodeURIComponent(m[1].replace(/\+/g,' ')); lat=parseFloat(m[2]); lng=parseFloat(m[3]); } }
+  if(!lat) { const m=/\/(-?\d{1,3}\.\d{4,}),(-?\d{1,3}\.\d{4,})/.exec(raw); if(m) { lat=parseFloat(m[1]); lng=parseFloat(m[2]); } }
+  if(lat&&!name) { const m=/\/place\/([^/@?&]+)/.exec(raw); if(m) name=decodeURIComponent(m[1].replace(/\+/g,' ').replace(/\//g,' ').replace(/\+/g,' ')).trim(); }
+  if(lat!==null&&(lat<-90||lat>90||lng<-180||lng>180)) lat=null;
+  if(lat!==null&&lng!==null) {
+    gmLat=lat; gmLng=lng; gmPlaceName=name||'';
+    document.getElementById('gm-coords').textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    document.getElementById('gm-name').textContent = name||'';
+    document.getElementById('gm-prev').style.display = 'block';
+    document.getElementById('i-la').value = lat.toFixed(6);
+    document.getElementById('i-ln').value = lng.toFixed(6);
+    if(name&&!document.getElementById('i-ad').value) document.getElementById('i-ad').value = name;
+  } else if(raw.length>10) {
+    document.getElementById('gm-err').style.display='block';
+    document.getElementById('gm-err').textContent = '❌ تعذر استخراج الإحداثيات';
+    gmLat=null; gmLng=null;
+  }
+}
+function gmAdd() {
+  if(gmLat===null){alert('الصق رابط صالح أولاً');return}
+  const ships=getShips(); const id=document.getElementById('i-id').value.trim()||`SHP-${String(ships.length+1).padStart(3,'0')}`;
+  const type=document.getElementById('i-tp').value; const address=document.getElementById('i-ad').value.trim()||gmPlaceName||'';
+  const customer=document.getElementById('i-cn').value.trim(); const phone=document.getElementById('i-ph').value.trim();
+  ships.push({id,lat:gmLat,lng:gmLng,type,address,customer,phone});
+  document.getElementById('gm-url').value=''; document.getElementById('gm-prev').style.display='none'; document.getElementById('gm-err').style.display='none';
+  ['i-id','i-cn','i-ph','i-la','i-ln','i-ad'].forEach(x=>document.getElementById(x).value='');
+  gmLat=null;gmLng=null;gmPlaceName=''; activeIdx=ships.length-1; renderAll();
+}
+function gmFlyTo() { if(gmLat===null)return; map.flyTo([gmLat,gmLng],16,{duration:.8}); if(tmpMk)map.removeLayer(tmpMk); tmpMk=L.circleMarker([gmLat,gmLng],{radius:8,color:'#4285f4',weight:2,fillColor:'#4285f4',fillOpacity:.35}).addTo(map); }
+function gmTrigger() {
+  const raw=document.getElementById('gm-url').value; if(!raw.trim())return;
+  const loading=document.getElementById('gm-loading'); loading.style.display='flex';
+  document.getElementById('gm-err').style.display='none'; document.getElementById('gm-prev').style.display='none'; document.getElementById('gm-results').style.display='none';
+  gmParse(raw); if(gmLat!==null) { loading.style.display='none'; return; }
+  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(raw)}&limit=5&accept-language=ar`)
+    .then(r=>r.json()).then(data => {
+      loading.style.display='none';
+      if(data&&data.length>0) {
+        if(data.length===1) {
+          gmLat=parseFloat(data[0].lat); gmLng=parseFloat(data[0].lon); gmPlaceName=data[0].display_name||'';
+          document.getElementById('gm-coords').textContent=`${gmLat.toFixed(5)}, ${gmLng.toFixed(5)}`;
+          document.getElementById('gm-name').textContent=gmPlaceName.substring(0,60);
+          document.getElementById('gm-prev').style.display='block';
+          document.getElementById('i-la').value=gmLat.toFixed(6); document.getElementById('i-ln').value=gmLng.toFixed(6);
+          if(!document.getElementById('i-ad').value) document.getElementById('i-ad').value=data[0].display_name?.substring(0,100)||'';
+        } else {
+          const r=document.getElementById('gm-results'); r.style.display='flex';
+          r.innerHTML=data.map((x,idx)=>`<div class="gr" onclick="selectSearchResult(${idx})"><span class="gr-n">${(x.display_name||'').substring(0,80)}</span><span class="gr-c">${parseFloat(x.lat).toFixed(4)},${parseFloat(x.lon).toFixed(4)}</span></div>`).join('');
+          window._gmResults = data;
+        }
+      } else {
+        document.getElementById('gm-err').style.display='block'; document.getElementById('gm-err').textContent='❌ لم يتم العثور على العنوان';
+      }
+    }).catch(()=>{loading.style.display='none'; document.getElementById('gm-err').style.display='block'; document.getElementById('gm-err').textContent='❌ فشل الاتصال';});
+}
+function selectSearchResult(idx) {
+  const data=window._gmResults; if(!data||!data[idx])return;
+  gmLat=parseFloat(data[idx].lat); gmLng=parseFloat(data[idx].lon); gmPlaceName=data[idx].display_name||'';
+  document.getElementById('gm-coords').textContent=`${gmLat.toFixed(5)}, ${gmLng.toFixed(5)}`;
+  document.getElementById('gm-name').textContent=gmPlaceName.substring(0,60);
+  document.getElementById('gm-prev').style.display='block'; document.getElementById('gm-results').style.display='none';
+  document.getElementById('i-la').value=gmLat.toFixed(6); document.getElementById('i-ln').value=gmLng.toFixed(6);
+  if(!document.getElementById('i-ad').value) document.getElementById('i-ad').value=data[idx].display_name?.substring(0,100)||'';
+  window._gmResults=null;
+}
+
+// ── HEADER PILLS ──
+function updateHeaderPills() {
+  const p = document.getElementById('hPills');
+  const total = users.reduce((a,u) => a + u.ships.length, 0);
+  p.innerHTML = `<div class="pill"><span class="pdot" style="background:var(--orange)"></span>${total} شحنة</div><div class="pill">${users.length} مندوب</div>`;
+}
+
+// ── DEMO ──
+function loadDemo() {
+  const demoData = [
+    {id:'SHP-001',lat:30.0561,lng:31.2394,type:'delivery',address:'المهندسين، الجيزة',customer:'أحمد محمود',phone:'01001234567'},
+    {id:'SHP-002',lat:30.0621,lng:31.2492,type:'cash',address:'الدقي، الجيزة',customer:'محمد علي',phone:'01002345678'},
+    {id:'SHP-003',lat:30.0444,lng:31.2357,type:'delivery',address:'وسط البلد، القاهرة',customer:'سارة أحمد',phone:'01003456789'},
+    {id:'SHP-004',lat:30.0731,lng:31.2219,type:'return',address:'العجوزة، الجيزة',customer:'خالد حسن',phone:'01004567890'},
+    {id:'SHP-005',lat:30.0300,lng:31.2100,type:'delivery',address:'الهرم، الجيزة',customer:'نورا إبراهيم',phone:'01005678901'},
+    {id:'SHP-006',lat:30.0680,lng:31.2450,type:'cash',address:'الزمالك، القاهرة',customer:'كريم سعيد',phone:'01006789012'},
+    {id:'SHP-007',lat:30.0500,lng:31.2600,type:'delivery',address:'مصر الجديدة، القاهرة',customer:'ليلى عمر',phone:'01007890123'},
+    {id:'SHP-008',lat:30.0380,lng:31.2280,type:'return',address:'فيصل، الجيزة',customer:'عبدالله نور',phone:'01008901234'},
+    {id:'SHP-009',lat:30.0800,lng:31.2100,type:'delivery',address:'إمبابة، الجيزة',customer:'منى شريف',phone:'01009012345'},
+    {id:'SHP-010',lat:30.0480,lng:31.2480,type:'cash',address:'وسط البلد، القاهرة',customer:'تامر حسن',phone:'01000123456'},
+    {id:'SHP-011',lat:30.0550,lng:31.2700,type:'delivery',address:'مدينة نصر، القاهرة',customer:'هاني فتحي',phone:'01001112233'},
+    {id:'SHP-012',lat:30.0700,lng:31.2000,type:'delivery',address:'بولاق الدكرور، الجيزة',customer:'سمير جابر',phone:'01002223344'},
+    {id:'SHP-013',lat:30.0600,lng:31.2300,type:'return',address:'الدقي، الجيزة',customer:'نادية كمال',phone:'01003334455'},
+    {id:'SHP-014',lat:30.0460,lng:31.2420,type:'cash',address:'قصر النيل، القاهرة',customer:'إيهاب أحمد',phone:'01004445566'},
+  ];
+  users[0].ships = demoData.slice(0,5);
+  users[1].ships = demoData.slice(5,10);
+  users[2].ships = demoData.slice(10,14);
+  activeUser = 'u1'; activeIdx = null; filter = 'all';
+  document.querySelectorAll('.fb').forEach(b=>b.classList.remove('on'));
+  document.querySelector('.fb')?.classList.add('on');
+  swPanel('dash', document.querySelector('.sidebar .tab'));
+  renderAll();
+}
+
+// ── KEYBOARD ──
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') { closeImp(); closeClk(); closeMv(); closeUs(); }
+  if (e.key==='Enter'&&['i-la','i-ln','i-id','i-ad','i-cn','i-ph'].includes(document.activeElement.id)) addShipment();
+  if (e.key==='Enter'&&['c-id','c-ad','c-cn','c-ph'].includes(document.activeElement.id)) confirmClk();
+});
+
+// ── RENDER ALL ──
+function renderAll() {
+  renderUserTabs(); renderDash(); renderShips(); renderMap(); updateLegend(); updateHeaderPills();
+}
+
+// ── INIT ──
+// ── AUTH ──
+const USERS = {
+  u1: {p:'123456', label:'مندوب 1'},
+  u2: {p:'123456', label:'مندوب 2'},
+  u3: {p:'123456', label:'مندوب 3'},
+  admin: {p:'admin123', label:'مدير'}
+};
+let loggedInUser = null;
+
+function doLogin() {
+  let u = document.getElementById('loginUser').value.trim().toLowerCase();
+  const p = document.getElementById('loginPass').value.trim();
+  const err = document.getElementById('loginError');
+  // Normalize: user1 -> u1, مندوب 1 -> u1, etc.
+  const MAP = {user1:'u1',user2:'u2',user3:'u3',مندوب1:'u1',مندوب2:'u2',مندوب3:'u3',ادمن:'admin',مدير:'admin'};
+  if (MAP[u]) u = MAP[u];
+  if (!u || !p || !USERS[u] || USERS[u].p !== p) {
+    err.style.display = 'block'; return;
+  }
+  err.style.display = 'none';
+  loggedInUser = u;
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('app').classList.add('show');
+  if (u === 'admin') { activeUser = 'u1'; }
+  else { activeUser = u; }
+  renderAll();
+  swPanel('dash', document.querySelector('.sidebar .tab'));
+}
+
+function quickLogin(u) {
+  document.getElementById('loginUser').value = u;
+  document.getElementById('loginPass').value = USERS[u]?.p || '';
+  doLogin();
+}
+
+function logout() {
+  loggedInUser = null;
+  document.getElementById('app').classList.remove('show');
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginError').style.display = 'none';
+}
+
+// Override: admin sees all, users see only their own
+const origSwitchUser = switchUser;
+switchUser = function(id) {
+  if (loggedInUser !== 'admin' && id !== loggedInUser) return;
+  origSwitchUser(id);
+};
+renderUserTabs = function() {
+  const bar = document.getElementById('utabs');
+  const visible = loggedInUser === 'admin' ? users : users.filter(u => u.id === loggedInUser);
+  bar.innerHTML = visible.map(u => {
+    const a = u.id === activeUser;
+    return `<button class="utab${a?' on':''}" onclick="switchUser('${u.id}')"><span class="dot" style="background:${u.color}"></span>${u.name} <span class="cnt">${u.ships.length}</span></button>`;
+  }).join('');
+};
+
+// ── INIT ──
+// App is hidden until login
+</script>
+</body>
+</html>
